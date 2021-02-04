@@ -297,7 +297,6 @@ std::string Disassemble(Memory& memory, uint16_t addr)
 	case 0xE8: return Implied("INX", memory, addr);
 	case 0xE9: return Immediate("SBC", memory, addr);
 	case 0xEA: return Implied("NOP", memory, addr);
-	case 0xEB: return Immediate("SBC", memory, addr);
 	case 0xEC: return Absolute("CPX", memory, addr);
 	case 0xED: return Absolute("SBC", memory, addr);
 	case 0xEE: return Absolute("INC", memory, addr);

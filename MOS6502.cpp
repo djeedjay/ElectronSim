@@ -184,8 +184,8 @@ void MOS6502::Step()
 	case 0xbc: return LDY(AbsoluteX());
 	case 0xbd: return LDA(AbsoluteX());
 	case 0xbe: return LDX(AbsoluteY());
-	case 0xc1: return CMP(IndirectX());
 	case 0xc0: return CPY(Immediate());
+	case 0xc1: return CMP(IndirectX());
 	case 0xc4: return CPY(ZeroPage());
 	case 0xc5: return CMP(ZeroPage());
 	case 0xc6: return DEC(ZeroPageRW());
