@@ -6,28 +6,9 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
-#include "Simulator.h"
-#include "MOS6502.h"
+#include "DjeeDjay/MOS6502.h"
 
-namespace Simulator {
-
-MemoryReadError::MemoryReadError(uint16_t address) :
-	std::runtime_error("Read error"),
-	address(address)
-{
-}
-
-MemoryWriteError::MemoryWriteError(uint16_t address) :
-	std::runtime_error("Write error"),
-	address(address)
-{
-}
-
-InvalidOpcodeError::InvalidOpcodeError(uint8_t opcode) :
-	std::runtime_error("Opcode error"),
-	opcode(opcode)
-{
-}
+namespace DjeeDjay {
 
 std::vector<uint8_t> Load(const std::string& path)
 {
@@ -362,12 +343,14 @@ void Run(bool trace)
 #endif
 }
 
-} // namespace Simulator
+void TestCpu(bool trace);
+
+} // namespace DjeeDjay
 
 int main(int argc, char* argv[])
 try
 {
-	using namespace Simulator;
+	using namespace DjeeDjay;
 
 	bool trace = false;
 	bool test = false;
@@ -383,19 +366,19 @@ try
 	if (test)
 		TestCpu(trace);
 	else
-		Simulator::Run(trace);
+		DjeeDjay::Run(trace);
 }
-catch (Simulator::MemoryReadError& ex)
+catch (DjeeDjay::MemoryReadError& ex)
 {
 	std::cerr << ex.what() << " at " << std::hex << ex.address << "\n";
 	return EXIT_FAILURE;
 }
-catch (Simulator::MemoryWriteError& ex)
+catch (DjeeDjay::MemoryWriteError& ex)
 {
 	std::cerr << ex.what() << " at " << std::hex << ex.address << "\n";
 	return EXIT_FAILURE;
 }
-catch (Simulator::InvalidOpcodeError& ex)
+catch (DjeeDjay::InvalidOpcodeError& ex)
 {
 	std::cerr << ex.what() << ": " << std::hex << +ex.opcode << "\n";
 	return EXIT_FAILURE;

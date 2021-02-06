@@ -18,21 +18,15 @@
     <ClCompile Include="Electron.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Disassemble.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MOS6502.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CpuTest.cpp">
+    <ClCompile Include="ElectronMemory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Simulator.h">
+    <ClInclude Include="..\Include\DjeeDjay\Electron.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MOS6502.h">
+    <ClInclude Include="..\Include\DjeeDjay\ElectronMemory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

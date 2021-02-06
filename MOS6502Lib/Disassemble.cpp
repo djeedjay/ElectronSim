@@ -1,13 +1,14 @@
-#include "Simulator.h"
-#include "MOS6502.h"
+// (C) Copyright Gert-Jan de Vos 2021.
 
-namespace Simulator {
+#include "DjeeDjay/MOS6502.h"
+
+namespace DjeeDjay {
 
 namespace {
 
 std::string Hex4(int n)
 {
-	return n < 10 ? std::string(1, '0' + n) : std::string(1, 'A' + n - 10);
+	return n < 10 ? std::string(1, static_cast<char>('0' + n)) : std::string(1, static_cast<char>('A' + n - 10));
 }
 
 std::string Hex8(uint8_t n)
@@ -312,4 +313,4 @@ std::string Disassemble(Memory& memory, uint16_t addr)
 	}
 }
 
-} // namespace Simulator
+} // namespace DjeeDjay

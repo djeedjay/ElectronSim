@@ -4,9 +4,9 @@
 #include <iostream>
 #include <conio.h>
 #include <windows.h>
-#include "MOS6502.h"
+#include "DjeeDjay/MOS6502.h"
 
-namespace Simulator {
+namespace DjeeDjay {
 
 class CpuTester : public Memory
 {
@@ -26,7 +26,7 @@ public:
 			auto ch = _getch();
 			if (ch == 3 || ch == 27 || ch == 'q' || ch == 'Q')
 				m_stop = true;
-			return ch;
+			return static_cast<uint8_t>(ch);
 		}
 		return m_memory[address];
 	}
@@ -69,4 +69,4 @@ void TestCpu(bool trace)
 	tester.Run(trace);
 }
 
-} // namespace Simulator
+} // namespace DjeeDjay
