@@ -589,12 +589,12 @@ std::array<uint32_t, 16> Ula::Palette16()
 		PaletteB(2, 5) | PaletteG(3, 5) | PaletteR(3, 1), // 6
 		PaletteB(4, 5) | PaletteG(5, 5) | PaletteR(5, 1), // 7
 		PaletteB(0, 6) | PaletteG(0, 2) | PaletteR(1, 2), // 8
-		PaletteB(6, 6) | PaletteG(6, 2) | PaletteR(6, 2), // 9
-		PaletteB(0, 7) | PaletteG(0, 3) | PaletteR(0, 3), // 10
+		PaletteB(6, 6) | PaletteG(6, 2) | PaletteR(7, 2), // 9
+		PaletteB(0, 7) | PaletteG(0, 3) | PaletteR(1, 3), // 10
 		PaletteB(6, 7) | PaletteG(6, 3) | PaletteR(6, 3), // 11
 		PaletteB(2, 6) | PaletteG(2, 2) | PaletteR(3, 2), // 12
-		PaletteB(4, 6) | PaletteG(4, 2) | PaletteR(4, 2), // 13
-		PaletteB(2, 7) | PaletteG(2, 3) | PaletteR(2, 3), // 14
+		PaletteB(4, 6) | PaletteG(4, 2) | PaletteR(5, 2), // 13
+		PaletteB(2, 7) | PaletteG(2, 3) | PaletteR(3, 3), // 14
 		PaletteB(4, 7) | PaletteG(4, 3) | PaletteR(4, 3), // 15
 	};
 }
