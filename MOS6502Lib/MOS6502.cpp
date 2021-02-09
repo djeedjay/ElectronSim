@@ -56,13 +56,18 @@ void MOS6502::IRQ(bool value)
 	m_irq = value;
 }
 
+bool MOS6502::IRQ() const
+{
+	return m_irq;
+}
+
 void MOS6502::Step()
 {
 	if (m_reset)
 	{
 		cycle = 0;
 		pc = Read16(0xfffc);
-		p = 0x20;
+		p = 0x00;
 		s = 0xff;
 		return;
 	}
@@ -70,7 +75,7 @@ void MOS6502::Step()
 	{
 		Push(MSB(pc));
 		Push(LSB(pc));
-		Push(p | 0x20);
+		Push((p & 0xcf) | 0x20);
 		m_nmi = false;
 		pc = Read16(0xfffa);
 		cycle += 7;
@@ -80,7 +85,7 @@ void MOS6502::Step()
 	{
 		Push(MSB(pc));
 		Push(LSB(pc));
-		Push(p | 0x20);
+		Push((p & 0xcf) | 0x20);
 		I(true);
 		pc = Read16(0xfffe);
 		cycle += 7;
@@ -741,7 +746,7 @@ void MOS6502::NOP(ImpliedType)
 
 void MOS6502::RTI(ImpliedType)
 {
-	p = Pull();
+	p = Pull() & 0xcf;
 	uint16_t addr = Pull();
 	addr |= Pull() << 8;
 	pc = addr;
@@ -800,7 +805,7 @@ void MOS6502::PHP(ImpliedType)
 
 void MOS6502::PLP(ImpliedType)
 {
-	p = Pull();
+	p = Pull() & 0xcf;
 }
 
 void MOS6502::TAX(ImpliedType)
@@ -863,7 +868,8 @@ void MOS6502::Branch(bool condition)
 {
 	if (condition)
 	{
-		uint16_t dst = pc + static_cast<int8_t>(ReadPC());
+		int8_t offset = static_cast<int8_t>(ReadPC());
+		uint16_t dst = pc + offset;
 		if ((dst & 0xff00) != (pc & 0xff00))
 			cycle += 1;
 		pc = dst;

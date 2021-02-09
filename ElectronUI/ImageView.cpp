@@ -2,7 +2,8 @@
 
 #include "stdafx.h"
 #include "DjeeDjay/Win32/HResultException.h"
-#include "Image.h"
+#include "DjeeDjay/Image.h"
+#include "DjeeDjay/Electron.h"
 #include "ImageView.h"
 
 #pragma comment(lib, "d2d1")
@@ -13,6 +14,8 @@ BEGIN_MSG_MAP2(ImageView)
 	MSG_WM_SIZE(OnSize)
 	MSG_WM_ERASEBKGND(OnEraseBkGnd)
 	MSG_WM_PAINT(OnPaint)
+	MESSAGE_HANDLER_EX(WM_KEYDOWN, SendToParent)
+	MESSAGE_HANDLER_EX(WM_KEYUP, SendToParent)
 END_MSG_MAP()
 
 ImageView::ImageView()
@@ -112,6 +115,11 @@ void ImageView::Paint(HDC /*hdc*/)
 	}
 
 	EndPaint(&ps);
+}
+
+LRESULT ImageView::SendToParent(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	return GetParent().SendMessage(uMsg, wParam, lParam);
 }
 
 void ImageView::CreateGraphicsResources()

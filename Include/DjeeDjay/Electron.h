@@ -2,30 +2,107 @@
 
 #pragma once
 
+#include <array>
 #include <functional>
+#include <chrono>
+#include "DjeeDjay/Image.h"
 #include "DjeeDjay/MOS6502.h"
-#include "DjeeDjay/ElectronMemory.h"
+#include "DjeeDjay/Electron/Ula.h"
 
 namespace DjeeDjay {
 
-class Electron
+enum class ElectronKey
+{
+	None,
+	Right,
+	Copy,
+	Space,
+	Left,
+	Down,
+	Return,
+	Delete,
+	Minus,
+	Up,
+	Colon,
+	Semicolon,
+	Divides,
+	Num0,
+	Num1,
+	Num2,
+	Num3,
+	Num4,
+	Num5,
+	Num6,
+	Num7,
+	Num8,
+	Num9,
+	A,
+	B,
+	C,
+	D,
+	E,
+	F,
+	G,
+	H,
+	I,
+	J,
+	K,
+	L,
+	M,
+	N,
+	O,
+	P,
+	Q,
+	R,
+	S,
+	T,
+	U,
+	V,
+	W,
+	X,
+	Y,
+	Z,
+	Dot,
+	Comma,
+	Escape,
+	CapsLk,
+	Ctrl,
+	Shift
+};
+
+class Electron : public Memory
 {
 public:
-	using FrameCompletedEvent = std::function<void ()>;
+	using TraceEvent = std::function<void (const std::string& msg)>;
+	using FrameCompletedEvent = std::function<void (const Image& image)>;
 
 	explicit Electron(const std::vector<uint8_t>& rom);
 
-	void InstallRom(const std::vector<uint8_t>& rom);
+	void InstallRom(int bank, std::vector<uint8_t> rom);
 
 	void Reset();
 
+	void KeyDown(ElectronKey key);
+	void KeyUp(ElectronKey key);
+
+	void Trace(TraceEvent slot);
 	void FrameCompleted(FrameCompletedEvent slot);
 
 	void Step();
 
+	// Memory
+	uint8_t Read(uint16_t address) override;
+	void Write(uint16_t address, uint8_t value) override;
+
 private:
-	ElectronMemory m_memory;
 	MOS6502 m_cpu;
+	std::array<uint8_t, 0x8000> m_ram;
+	std::array<uint8_t, 0x4000> m_os;
+	Ula m_ula;
+	Image m_image;
+	std::chrono::steady_clock::time_point m_startTime;
+
+	TraceEvent m_trace;
 	FrameCompletedEvent m_frameCompleted;
 };
 

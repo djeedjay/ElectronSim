@@ -20,11 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Electron.cpp" />
-    <ClCompile Include="ElectronMemory.cpp" />
+    <ClCompile Include="Ula.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Include\DjeeDjay\Electron.h" />
-    <ClInclude Include="..\Include\DjeeDjay\ElectronMemory.h" />
+    <ClInclude Include="..\Include\DjeeDjay\Electron\Ula.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\MOS6502Lib\MOS6502Lib.vcxproj">

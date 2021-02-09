@@ -23,6 +23,7 @@ public:
 	void NMI();
 	void Reset(bool value);
 	void IRQ(bool value);
+	bool IRQ() const;
 
 	void Step();
 

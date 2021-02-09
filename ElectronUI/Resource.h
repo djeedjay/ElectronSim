@@ -18,6 +18,9 @@
 #ifndef IDC_STATIC
 #define IDC_STATIC				-1
 #endif
+#define ID_CPU_EXCEPTION       1000
+#define ID_FRAME_COMPLETED     1001
+
 // Next default values for new objects
 //
 #ifdef APSTUDIO_INVOKED
@@ -26,7 +29,7 @@
 #define _APS_NO_MFC					130
 #define _APS_NEXT_RESOURCE_VALUE	129
 #define _APS_NEXT_COMMAND_VALUE		32771
-#define _APS_NEXT_CONTROL_VALUE		1000
+#define _APS_NEXT_CONTROL_VALUE		1001
 #define _APS_NEXT_SYMED_VALUE		110
 #endif
 #endif

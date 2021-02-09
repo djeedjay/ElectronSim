@@ -314,7 +314,7 @@ void Run(bool trace)
 	cpu.Step();
 	cpu.Reset(false);
 
-	while (cpu.Cycles() < 10'000'000)
+	while (cpu.Cycles() < 450'000)
 	{
 		if (trace)
 			std::cout << ShowRegisters(cpu) << " " << Disassemble(memory, cpu.PC()) << "\n";
@@ -347,7 +347,7 @@ void TestCpu(bool trace);
 
 } // namespace DjeeDjay
 
-int main(int argc, char* argv[])
+int main(int /*argc*/, char* argv[])
 try
 {
 	using namespace DjeeDjay;

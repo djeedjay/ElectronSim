@@ -1,6 +1,6 @@
 ﻿// (C) Copyright Gert-Jan de Vos 2021.
 
-#include "Image.h"
+#include "DjeeDjay/Image.h"
 
 namespace DjeeDjay {
 

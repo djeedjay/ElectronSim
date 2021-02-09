@@ -28,6 +28,7 @@ private:
 	void OnSize(UINT type, SIZE size);
 	BOOL OnEraseBkGnd(HDC hdc);
 	void OnPaint(HDC dc);
+	LRESULT SendToParent(UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 	void Destroy();
 	void Paint(HDC hdc);
