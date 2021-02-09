@@ -59,6 +59,31 @@ void Ula::Trace(TraceEvent slot)
 	m_trace = slot;
 }
 
+void Ula::CapsLock(CapsLockEvent slot)
+{
+	m_capsLock = slot;
+}
+
+void Ula::CassetteMotor(CassetteMotorEvent slot)
+{
+	m_cassetteMotor = slot;
+}
+
+void Ula::Speaker(SpeakerEvent slot)
+{
+	m_speaker = slot;
+}
+
+bool Ula::CapsLock() const
+{
+	return m_miscControl & 0x80;
+}
+
+bool Ula::CassetteMotor() const
+{
+	return m_miscControl & 0x40;
+}
+
 void Ula::InstallRom(int bank, std::vector<uint8_t> rom)
 {
 	if (bank < 0 || bank >= m_roms.size())
@@ -238,8 +263,12 @@ void Ula::InterruptClearAndPaging(uint8_t value)
 	UpdateIrqStatus(m_irqEnable, irqStatus);
 }
 
-void Ula::Counter(uint8_t)
+void Ula::Counter(uint8_t value)
 {
+	if (((m_miscControl & 0x06) >> 1) == 1 && value != m_counter)
+		m_speaker(1'000'000 / (16 * (value + 1)));
+
+	m_counter = value;
 }
 
 uint8_t Ula::MiscellaneousControl()
@@ -249,6 +278,17 @@ uint8_t Ula::MiscellaneousControl()
 
 void Ula::MiscellaneousControl(uint8_t value)
 {
+	bool capsLock = value & 0x80;
+	if (capsLock != CapsLock())
+		m_capsLock(capsLock);
+	bool cassetteMotor = value & 0x40;
+	if (cassetteMotor != CassetteMotor())
+		m_cassetteMotor(cassetteMotor);
+
+	auto mode = (value & 0x06) >> 1;
+	if (mode != ((m_miscControl & 0x06) >> 1))
+		m_speaker(mode == 1 ? 1'000'000 / (16 * (m_counter + 1)) : 0);
+
 	m_miscControl = value;
 }
 
@@ -314,7 +354,7 @@ void GenerateMode1(const uint8_t* ram, size_t screenStart, const std::array<uint
 
 	for (int y = 0; y < 32; ++y)
 	{
-		for (int x = 0; x < 40; ++x)
+		for (int x = 0; x < 80; ++x)
 		{
 			for (int row = 0; row < 8; ++row)
 			{
@@ -338,14 +378,14 @@ void GenerateMode2(const uint8_t* ram, size_t screenStart, const std::array<uint
 
 	auto Write = [&](int x, int y, uint32_t value)
 	{
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 0] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 1] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 2] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 3] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 0] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 1] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 2] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 3] = value;
+		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 0] = value;
+		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 1] = value;
+		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 2] = value;
+		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 3] = value;
+		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 0] = value;
+		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 1] = value;
+		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 2] = value;
+		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 3] = value;
 	};
 
 	for (int y = 0; y < 32; ++y)

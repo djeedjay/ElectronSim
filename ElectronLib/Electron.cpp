@@ -120,6 +120,31 @@ void Electron::FrameCompleted(FrameCompletedEvent slot)
 	m_frameCompleted = slot;
 }
 
+void Electron::CapsLock(CapsLockEvent slot)
+{
+	m_ula.CapsLock(slot);
+}
+
+void Electron::CassetteMotor(CassetteMotorEvent slot)
+{
+	m_ula.CassetteMotor(slot);
+}
+
+bool Electron::CapsLock() const
+{
+	return m_ula.CapsLock();
+}
+
+bool Electron::CassetteMotor() const
+{
+	return m_ula.CassetteMotor();
+}
+
+void Electron::Speaker(SpeakerEvent slot)
+{
+	return m_ula.Speaker(slot);
+}
+
 using CpuCycles = std::chrono::duration<uint64_t, std::ratio<1, 2'000'000>>;
 
 void Electron::Step()

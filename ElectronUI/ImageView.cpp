@@ -31,6 +31,7 @@ COLORREF ImageView::BackgroundColor() const
 void ImageView::BackgroundColor(COLORREF value)
 {
 	m_bgColor = value;
+	Invalidate(FALSE);
 }
 
 void ImageView::Update(const Image& image)
@@ -104,6 +105,7 @@ void ImageView::Paint(HDC /*hdc*/)
 	float width = scale * imageSize.width;
 	float height = scale * imageSize.height;
 
+	m_pIBrush->SetColor(D2D1::ColorF(m_bgColor, 1.0f));
 	m_pIRenderTarget->FillRectangle(D2D1::RectF(0, 0, viewSize.width, viewSize.height), m_pIBrush);
 
 	m_pIRenderTarget->DrawBitmap(m_pIBitmap, D2D1::RectF((viewSize.width - width)/2, (viewSize.height - height)/2, (viewSize.width + width)/2, (viewSize.height + height)/2));

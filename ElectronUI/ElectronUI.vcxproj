@@ -159,6 +159,7 @@
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ShowError.h" />
+    <ClInclude Include="Speaker.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
@@ -166,6 +167,7 @@
     <ClCompile Include="ImageView.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="ShowError.cpp" />
+    <ClCompile Include="Speaker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="ElectronUI.rc" />

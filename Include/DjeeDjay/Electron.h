@@ -75,6 +75,9 @@ class Electron : public Memory
 public:
 	using TraceEvent = std::function<void (const std::string& msg)>;
 	using FrameCompletedEvent = std::function<void (const Image& image)>;
+	using CapsLockEvent = Ula::CapsLockEvent;
+	using CassetteMotorEvent = Ula::CassetteMotorEvent;
+	using SpeakerEvent = Ula::SpeakerEvent;
 
 	explicit Electron(const std::vector<uint8_t>& rom);
 
@@ -87,6 +90,12 @@ public:
 
 	void Trace(TraceEvent slot);
 	void FrameCompleted(FrameCompletedEvent slot);
+	void CapsLock(CapsLockEvent slot);
+	void CassetteMotor(CassetteMotorEvent slot);
+	void Speaker(SpeakerEvent slot);
+
+	bool CapsLock() const;
+	bool CassetteMotor() const;
 
 	void Step();
 

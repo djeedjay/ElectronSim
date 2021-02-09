@@ -1,6 +1,9 @@
 // (C) Copyright Gert-Jan de Vos 2021.
 
 #include "stdafx.h"
+#include <vector>
+#include <fstream>
+#include <iterator>
 #include "resource.h"
 #include "DjeeDjay/string_cast.h"
 #include "MainFrame.h"
@@ -8,6 +11,14 @@
 namespace DjeeDjay {
 
 namespace {
+
+std::vector<uint8_t> Load(const std::wstring& path)
+{
+	std::vector<uint8_t> data;
+	std::ifstream fs(path, std::ios::binary);
+	std::copy(std::istreambuf_iterator<char>(fs), std::istreambuf_iterator<char>(), std::back_inserter(data));
+	return data;
+}
 
 std::vector<uint8_t> ExtractResourceData(int resourceId)
 {
@@ -167,6 +178,9 @@ KeyEvent KeyEvent::Up(ElectronKey key)
 }
 
 BEGIN_UPDATE_UI_MAP2(MainFrame)
+	UPDATE_ELEMENT(0, UPDUI_STATUSBAR)
+	UPDATE_ELEMENT(1, UPDUI_STATUSBAR)
+	UPDATE_ELEMENT(2, UPDUI_STATUSBAR)
 END_UPDATE_UI_MAP()
 
 BEGIN_MSG_MAP2(MainFrame)
@@ -174,8 +188,13 @@ BEGIN_MSG_MAP2(MainFrame)
 	MSG_WM_CLOSE(OnClose)
 	MSG_WM_KEYDOWN(OnKeyDown)
 	MSG_WM_KEYUP(OnKeyUp)
+	COMMAND_ID_HANDLER_EX(IDM_FILE_INSERT_ROM, OnFileInsertRom)
+	COMMAND_ID_HANDLER_EX(IDM_VIEW_FULL_SCREEN, OnFullScreen)
 	COMMAND_ID_HANDLER_EX(ID_CPU_EXCEPTION, OnCpuException)
 	COMMAND_ID_HANDLER_EX(ID_FRAME_COMPLETED, OnFrameCompleted)
+	COMMAND_ID_HANDLER_EX(ID_CAPSLOCK_CHANGED, OnCapsLockChanged)
+	COMMAND_ID_HANDLER_EX(ID_CASSETTEMOTOR_CHANGED, OnCassetteMotorChanged)
+	COMMAND_ID_HANDLER_EX(ID_PLAY_SOUND, OnPlaySound)
 	CHAIN_MSG_MAP(CUpdateUI<MainFrame>)
 	CHAIN_MSG_MAP(CFrameWindowImpl<MainFrame>)
 END_MSG_MAP()
@@ -191,7 +210,6 @@ MainFrame::MainFrame() :
 
 BOOL MainFrame::OnIdle()
 {
-	//UpdateUI();
 	UIUpdateToolBar();
 	UIUpdateStatusBar();
 	UIUpdateChildWindows();
@@ -200,13 +218,14 @@ BOOL MainFrame::OnIdle()
 
 LRESULT MainFrame::OnCreate(const CREATESTRUCT* /*pCreate*/)
 {
-	SetWindowText(L"Acorn Electron");
+//	SetWindowText(L"Acorn Electron");
 
 	HICON hIcon = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXICON), ::GetSystemMetrics(SM_CYICON));
 	SetIcon(hIcon, TRUE);
 	HICON hIconSmall = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON));
 	SetIcon(hIconSmall, FALSE);
 
+	_Module.GetMessageLoop()->AddMessageFilter(this);
 	_Module.GetMessageLoop()->AddIdleHandler(this);
 
 	HWND hWndCmdBar = m_cmdBar.Create(*this, rcDefault, nullptr, ATL_SIMPLE_CMDBAR_PANE_STYLE);
@@ -219,8 +238,11 @@ LRESULT MainFrame::OnCreate(const CREATESTRUCT* /*pCreate*/)
 	CReBarCtrl rebar(m_hWndToolBar);
 	AddSimpleReBarBand(hWndCmdBar);
 
-	CreateSimpleStatusBar();
+	m_hWndStatusBar = m_statusBar.Create(*this);
 	UIAddStatusBar(m_hWndStatusBar);
+
+	int paneIds[] = { ID_DEFAULT_PANE, ID_CAPSLOCK_PANE, ID_CASSETTEMOTOR_PANE };
+	m_statusBar.SetPanes(paneIds, 3, false);
 
 	//HWND hWndToolBar = CreateSimpleToolBarCtrl(rebar, IDR_MAINFRAME, FALSE, ATL_SIMPLE_TOOLBAR_PANE_STYLE);
 	//AddSimpleReBarBand(hWndToolBar, nullptr, true);
@@ -232,11 +254,15 @@ LRESULT MainFrame::OnCreate(const CREATESTRUCT* /*pCreate*/)
 
 	m_hWndClient = m_imageView.Create(*this, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN, 0);
 	m_imageView.BackgroundColor(GetSysColor(COLOR_BTNFACE));
-	m_imageView.Update(m_image);
 
 	m_thread = std::thread([this]() { Run(); });
 
 	return TRUE;
+}
+
+BOOL MainFrame::PreTranslateMessage(MSG* pMsg)
+{
+	return CFrameWindowImpl::PreTranslateMessage(pMsg);
 }
 
 void MainFrame::OnClose()
@@ -252,6 +278,8 @@ void MainFrame::OnKeyDown(UINT nChar, UINT /*nRepCnt*/, UINT /*nFlags*/)
 	auto key = MakeElectronKey(nChar);
 	if (key != ElectronKey::None)
 		SendKeyEvent(KeyEvent::Down(key));
+	else
+		SetMsgHandled(false);
 }
 
 void MainFrame::OnKeyUp(UINT nChar, UINT /*nRepCnt*/, UINT /*nFlags*/)
@@ -259,6 +287,33 @@ void MainFrame::OnKeyUp(UINT nChar, UINT /*nRepCnt*/, UINT /*nFlags*/)
 	auto key = MakeElectronKey(nChar);
 	if (key != ElectronKey::None)
 		SendKeyEvent(KeyEvent::Up(key));
+	else
+		SetMsgHandled(false);
+}
+
+void MainFrame::OnFileInsertRom(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
+{
+	std::array<COMDLG_FILTERSPEC, 1> filters =
+	{{
+		{ L"ROM Files (*.rom)", L"*.rom" }
+	}};
+	CShellFileOpenDialog dlg(L"", FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST, nullptr, filters.data(), static_cast<UINT>(filters.size()));
+	if (dlg.DoModal(*this) == IDOK)
+	{
+		CString fileName;
+		dlg.GetFilePath(fileName);
+
+		m_electron.InstallRom(2, Load(static_cast<const wchar_t*>(fileName)));
+	}
+}
+
+void MainFrame::OnFullScreen(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
+{
+	DWORD dwStyle = GetWindowLong(GWL_STYLE);
+	if (dwStyle & WS_OVERLAPPEDWINDOW)
+		SetFullscreen();
+	else
+		SetWindowed();
 }
 
 void MainFrame::OnCpuException(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
@@ -271,6 +326,51 @@ void MainFrame::OnFrameCompleted(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
 	std::unique_lock<std::mutex> lock(m_mtx);
 	m_imageView.Update(m_image);
 	lock.unlock();
+}
+
+void MainFrame::OnCapsLockChanged(UINT uCode, int /*nID*/, HWND /*hwndCtrl*/)
+{
+	UISetText(ID_CAPSLOCK_PANE, uCode ? L"CAPS LOCK" : L"");
+}
+
+void MainFrame::OnCassetteMotorChanged(UINT uCode, int /*nID*/, HWND /*hwndCtrl*/)
+{
+	UISetText(ID_CASSETTEMOTOR_PANE, uCode ? L"CASSETTE MOTOR" : L"");
+}
+
+void MainFrame::OnPlaySound(UINT uCode, int /*nID*/, HWND /*hwndCtrl*/)
+{
+	if (uCode == 0)
+		m_speaker.Stop();
+	else
+		m_speaker.Play(uCode);
+}
+
+void MainFrame::SetFullscreen()
+{
+	MONITORINFO mi = { sizeof(mi) };
+	if (GetWindowPlacement(&m_windowPlacement) && GetMonitorInfo(MonitorFromWindow(*this, MONITOR_DEFAULTTOPRIMARY), &mi))
+	{
+		m_imageView.BackgroundColor(RGB(0, 0, 0));
+		DWORD dwStyle = GetWindowLong(GWL_STYLE);
+		SetWindowLong(GWL_STYLE, dwStyle & ~WS_OVERLAPPEDWINDOW);
+		SetWindowPos(HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+		::ShowWindow(m_hWndToolBar, SW_HIDE);
+		::ShowWindow(m_hWndStatusBar, SW_HIDE);
+		UpdateLayout();
+	}
+}
+
+void MainFrame::SetWindowed()
+{
+	m_imageView.BackgroundColor(GetSysColor(COLOR_BTNFACE));
+	DWORD dwStyle = GetWindowLong(GWL_STYLE);
+	SetWindowLong(GWL_STYLE, dwStyle | WS_OVERLAPPEDWINDOW);
+	SetWindowPlacement(&m_windowPlacement);
+	SetWindowPos(nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+	::ShowWindow(m_hWndToolBar, SW_SHOW);
+	::ShowWindow(m_hWndStatusBar, SW_SHOW);
+	UpdateLayout();
 }
 
 void MainFrame::OnFrameCompleted(const Image& image)
@@ -292,8 +392,14 @@ void MainFrame::SendKeyEvent(const KeyEvent& event)
 
 void MainFrame::Run()
 {
+	PostMessage(WM_COMMAND, MAKELONG(ID_CAPSLOCK_CHANGED, m_electron.CapsLock()));
+	PostMessage(WM_COMMAND, MAKELONG(ID_CASSETTEMOTOR_CHANGED, m_electron.CassetteMotor()));
+
 	m_electron.Trace([](const std::string& msg) { OutputDebugStringA(msg.c_str()); });
 	m_electron.FrameCompleted([this](const Image& image) { OnFrameCompleted(image); });
+	m_electron.CapsLock([this](bool value) { PostMessage(WM_COMMAND, MAKELONG(ID_CAPSLOCK_CHANGED, value)); });
+	m_electron.CassetteMotor([this](bool value) { PostMessage(WM_COMMAND, MAKELONG(ID_CASSETTEMOTOR_CHANGED, value)); });
+	m_electron.Speaker([this](int frequency) { PostMessage(WM_COMMAND, MAKELONG(ID_PLAY_SOUND, frequency)); });
 
 	m_electron.Reset();
 

@@ -23,10 +23,19 @@ class Ula
 {
 public:
 	using TraceEvent = std::function<void (const std::string& msg)>;
+	using CapsLockEvent = std::function<void (bool)>;
+	using CassetteMotorEvent = std::function<void (bool)>;
+	using SpeakerEvent = std::function<void (int)>;
 
 	explicit Ula(MOS6502& cpu);
 
 	void Trace(TraceEvent slot);
+	void CapsLock(CapsLockEvent slot);
+	void CassetteMotor(CassetteMotorEvent slot);
+	void Speaker(SpeakerEvent slot);
+
+	bool CapsLock() const;
+	bool CassetteMotor() const;
 
 	void InstallRom(int bank, std::vector<uint8_t> rom);
 	uint8_t ReadKeyboard(uint16_t address);
@@ -72,6 +81,9 @@ private:
 
 	MOS6502& m_cpu;
 	TraceEvent m_trace;
+	CapsLockEvent m_capsLock;
+	CassetteMotorEvent m_cassetteMotor;
+	SpeakerEvent m_speaker;
 	std::array<std::vector<uint8_t>, 16> m_roms;
 	std::array<uint8_t, 14> m_keyboard;
 
@@ -84,6 +96,7 @@ private:
 	uint8_t m_screenLow;
 	uint8_t m_screenHigh;
 	int m_romBankIndex;
+	uint8_t m_counter;
 	uint8_t m_miscControl;
 	uint8_t m_palette[8];
 };
