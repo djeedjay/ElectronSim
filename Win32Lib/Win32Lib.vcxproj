@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Clipboard.cpp" />
     <ClCompile Include="ComApi.cpp" />
     <ClCompile Include="Handle.cpp" />
     <ClCompile Include="HResultException.cpp" />
@@ -27,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Include\DjeeDjay\Win32\AtlWinExt.h" />
+    <ClInclude Include="..\Include\DjeeDjay\Win32\Clipboard.h" />
     <ClInclude Include="..\Include\DjeeDjay\Win32\ComApi.h" />
     <ClInclude Include="..\Include\DjeeDjay\Win32\Handle.h" />
     <ClInclude Include="..\Include\DjeeDjay\Win32\HResultException.h" />

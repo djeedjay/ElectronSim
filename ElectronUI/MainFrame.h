@@ -36,9 +36,14 @@ private:
 
 	LRESULT OnCreate(const CREATESTRUCT* pCreate);
 	void OnClose();
+	void OnGetMinMaxInfo(MINMAXINFO* pInfo);
 	void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
+	void OnContextMenu(HWND hWnd, POINT pt);
+	void OnDropFiles(HDROP hDropInfo);
 	void OnFileInsertRom(UINT uCode, int nID, HWND hwndCtrl);
+	void OnMute(UINT uCode, int nID, HWND hwndCtrl);
+	void OnCopyScreen(UINT uCode, int nID, HWND hwndCtrl);
 	void OnFullScreen(UINT uCode, int nID, HWND hwndCtrl);
 	void OnElectronBreak(UINT uCode, int nID, HWND hwndCtrl);
 	void OnElectronRestart(UINT uCode, int nID, HWND hwndCtrl);
@@ -51,6 +56,8 @@ private:
 	void SetFullscreen();
 	void SetWindowed();
 
+	void InstallRom(const std::wstring& filename);
+
 	void OnFrameCompleted(const Image& image);
 	void RunElectron(std::function<void ()> fn);
 	void Run();
@@ -58,9 +65,11 @@ private:
 	CCommandBarCtrl m_cmdBar;
 	CMenu m_hMenu;
 	CMultiPaneStatusBarCtrl m_statusBar;
+	CPoint m_frameSize;
 	WINDOWPLACEMENT m_windowPlacement;
 	ImageView m_imageView;
 	Speaker m_speaker;
+	bool m_mute;
 	std::mutex m_mtx;
 	Image m_image;
 	bool m_stop;

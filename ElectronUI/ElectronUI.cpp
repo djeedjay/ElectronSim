@@ -23,7 +23,7 @@ int Main(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR /*lpstrCmdLine
 
 	MainFrame mainFrame;
 
-	if (mainFrame.CreateEx(nullptr) == nullptr)
+	if (mainFrame.CreateEx(nullptr, 0, WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME) == nullptr)
 		Win32::ThrowLastError("Main dialog creation failed!\n");
 
 	mainFrame.ShowWindow(nCmdShow);

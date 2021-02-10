@@ -30,6 +30,16 @@ int Image::Height() const
 	return m_height;
 }
 
+uint32_t Image::operator()(int x, int y) const
+{
+	return m_data[y * m_width + x];
+}
+
+uint32_t& Image::operator()(int x, int y)
+{
+	return m_data[y * m_width + x];
+}
+
 uint32_t* Image::Data()
 {
 	return m_data.data();
@@ -43,6 +53,18 @@ const uint32_t* Image::Data() const
 int Image::Stride() const
 {
 	return m_width * sizeof(uint32_t);
+}
+
+Image Upscale(const Image& image, int nx, int ny)
+{
+	Image result;
+	result.Resize(nx * image.Width(), ny * image.Height());
+	for (int y = 0; y < image.Height(); ++y)
+		for (int iy = 0; iy < ny; ++iy)
+			for (int x = 0; x < image.Width(); ++x)
+				for (int ix = 0; ix < nx; ++ix)
+					result(nx * x + ix, ny * y + iy) = image(x, y);
+	return result;
 }
 
 } // namespace DjeeDjay

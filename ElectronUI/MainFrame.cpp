@@ -6,6 +6,7 @@
 #include <iterator>
 #include "resource.h"
 #include "DjeeDjay/string_cast.h"
+#include "DjeeDjay/Win32/Clipboard.h"
 #include "MainFrame.h"
 
 namespace DjeeDjay {
@@ -170,6 +171,7 @@ ElectronKey MakeElectronKey(UINT keyCode)
 } // namespace
 
 BEGIN_UPDATE_UI_MAP2(MainFrame)
+	UPDATE_ELEMENT(IDM_ELECTRON_MUTE, UPDUI_MENUPOPUP)
 	UPDATE_ELEMENT(0, UPDUI_STATUSBAR)
 	UPDATE_ELEMENT(1, UPDUI_STATUSBAR)
 	UPDATE_ELEMENT(2, UPDUI_STATUSBAR)
@@ -178,10 +180,15 @@ END_UPDATE_UI_MAP()
 BEGIN_MSG_MAP2(MainFrame)
 	MSG_WM_CREATE(OnCreate)
 	MSG_WM_CLOSE(OnClose)
+	MSG_WM_GETMINMAXINFO(OnGetMinMaxInfo)
 	MSG_WM_KEYDOWN(OnKeyDown)
 	MSG_WM_KEYUP(OnKeyUp)
+	MSG_WM_CONTEXTMENU(OnContextMenu)
+	MSG_WM_DROPFILES(OnDropFiles)
 	COMMAND_ID_HANDLER_EX(IDM_FILE_INSERT_ROM, OnFileInsertRom)
-	COMMAND_ID_HANDLER_EX(IDM_VIEW_FULL_SCREEN, OnFullScreen)
+	COMMAND_ID_HANDLER_EX(IDM_ELECTRON_MUTE, OnMute)
+	COMMAND_ID_HANDLER_EX(IDM_ELECTRON_COPY_SCREEN, OnCopyScreen)
+	COMMAND_ID_HANDLER_EX(IDM_ELECTRON_FULL_SCREEN, OnFullScreen)
 	COMMAND_ID_HANDLER_EX(IDM_ELECTRON_BREAK, OnElectronBreak)
 	COMMAND_ID_HANDLER_EX(IDM_ELECTRON_RESTART, OnElectronRestart)
 	COMMAND_ID_HANDLER_EX(ID_CPU_EXCEPTION, OnCpuException)
@@ -194,6 +201,7 @@ BEGIN_MSG_MAP2(MainFrame)
 END_MSG_MAP()
 
 MainFrame::MainFrame() :
+	m_mute(false),
 	m_stop(false),
 	m_electron(ExtractResourceData(IDR_OS_ROM)),
 	m_qChanged(false)
@@ -203,6 +211,7 @@ MainFrame::MainFrame() :
 
 BOOL MainFrame::OnIdle()
 {
+	UISetCheck(IDM_ELECTRON_MUTE, m_mute);
 	UIUpdateToolBar();
 	UIUpdateStatusBar();
 	UIUpdateChildWindows();
@@ -251,9 +260,15 @@ LRESULT MainFrame::OnCreate(const CREATESTRUCT* /*pCreate*/)
 	CRect statusRect;
 	m_statusBar.GetWindowRect(statusRect);
 	ResizeClient(640, 512 + cmdBarRect.Height() + statusRect.Height());
+	CRect frameRect, clientRect;
+	GetWindowRect(frameRect);
+	GetClientRect(clientRect);
+	auto sz = frameRect.Size() - clientRect.Size();
+	m_frameSize = CPoint(640 + sz.cx, 512 + cmdBarRect.Height() + statusRect.Height() + sz.cy);
 
 	m_thread = std::thread([this]() { Run(); });
 
+	DragAcceptFiles(true);
 	return TRUE;
 }
 
@@ -268,6 +283,15 @@ void MainFrame::OnClose()
 	m_thread.join();
 
 	DestroyWindow();
+}
+
+void MainFrame::OnGetMinMaxInfo(MINMAXINFO* pInfo)
+{
+	if (GetWindowLong(GWL_STYLE) & WS_OVERLAPPEDWINDOW)
+	{
+		pInfo->ptMinTrackSize = m_frameSize;
+		pInfo->ptMaxTrackSize = m_frameSize;
+	}
 }
 
 void MainFrame::OnKeyDown(UINT nChar, UINT /*nRepCnt*/, UINT /*nFlags*/)
@@ -289,6 +313,53 @@ void MainFrame::OnKeyUp(UINT nChar, UINT /*nRepCnt*/, UINT /*nFlags*/)
 		SetMsgHandled(false);
 }
 
+void MainFrame::OnContextMenu(HWND /*hWnd*/, POINT pt)
+{
+	if (CPoint(pt) == CPoint(-1, -1))
+	{
+		CRect rect;
+		m_imageView.GetClientRect(&rect);
+		pt = rect.CenterPoint();
+		m_imageView.ClientToScreen(&pt);
+	}
+
+	auto GetEnable = [&](bool enable) { return enable ? MF_ENABLED : MF_DISABLED; };
+
+	CMenu menu;
+	menu.LoadMenu(IDR_CONTEXT_MENU);
+
+	CMenuHandle menuPopup(menu.GetSubMenu(0));
+	menuPopup.CheckMenuItem(IDM_ELECTRON_MUTE, m_mute ? MF_CHECKED : 0);
+	menuPopup.CheckMenuItem(IDM_ELECTRON_FULL_SCREEN, (GetWindowLong(GWL_STYLE) & WS_OVERLAPPEDWINDOW) ? 0 : MF_CHECKED);
+	menuPopup.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, pt.x, pt.y, *this);
+}
+
+void MainFrame::OnDropFiles(HDROP hDropInfo)
+{
+	struct DragGuard
+	{
+		DragGuard(HDROP hDropInfo) :
+			hDropInfo(hDropInfo)
+		{
+		}
+
+		~DragGuard()
+		{
+			DragFinish(hDropInfo);
+		}
+
+		HDROP hDropInfo;
+	} guard(hDropInfo);
+
+
+	if (DragQueryFile(hDropInfo, 0xFFFFFFFF, nullptr, 0) == 1)
+	{
+		std::vector<wchar_t> filename(DragQueryFile(hDropInfo, 0, nullptr, 0) + 1);
+		if (DragQueryFile(hDropInfo, 0, filename.data(), static_cast<unsigned>(filename.size())))
+			InstallRom(filename.data());
+	}
+}
+
 void MainFrame::OnFileInsertRom(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
 {
 	std::array<COMDLG_FILTERSPEC, 1> filters =
@@ -301,12 +372,24 @@ void MainFrame::OnFileInsertRom(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
 		CString fileName;
 		dlg.GetFilePath(fileName);
 
-		RunElectron([this, fileName]()
-		{
-			m_electron.InstallRom(2, Load(static_cast<const wchar_t*>(fileName)));
-			m_electron.Break();
-		});
+		InstallRom(static_cast<const wchar_t*>(fileName));
 	}
+}
+
+void MainFrame::OnMute(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
+{
+	m_mute = !m_mute;
+	if (m_mute)
+		m_speaker.Stop();
+}
+
+void MainFrame::OnCopyScreen(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
+{
+	std::unique_lock<std::mutex> lock(m_mtx);
+	int scale = m_image.Width() < 640 ? 1 : 2;
+	auto image = Upscale(m_image, scale * 320 / m_image.Width(), scale * 256 / m_image.Height());
+	lock.unlock();
+	Win32::CopyToClipboard(image, *this);
 }
 
 void MainFrame::OnFullScreen(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
@@ -352,10 +435,13 @@ void MainFrame::OnCassetteMotorChanged(UINT uCode, int /*nID*/, HWND /*hwndCtrl*
 
 void MainFrame::OnPlaySound(UINT uCode, int /*nID*/, HWND /*hwndCtrl*/)
 {
-	if (uCode == 0)
-		m_speaker.Stop();
-	else
-		m_speaker.Play(uCode);
+	if (!m_mute)
+	{
+		if (uCode == 0)
+			m_speaker.Stop();
+		else
+			m_speaker.Play(uCode);
+	}
 }
 
 void MainFrame::SetFullscreen()
@@ -377,12 +463,21 @@ void MainFrame::SetWindowed()
 {
 	m_imageView.BackgroundColor(GetSysColor(COLOR_BTNFACE));
 	DWORD dwStyle = GetWindowLong(GWL_STYLE);
-	SetWindowLong(GWL_STYLE, dwStyle | WS_OVERLAPPEDWINDOW);
+	SetWindowLong(GWL_STYLE, dwStyle | (WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME));
 	SetWindowPlacement(&m_windowPlacement);
 	SetWindowPos(nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
 	::ShowWindow(m_hWndToolBar, SW_SHOW);
 	::ShowWindow(m_hWndStatusBar, SW_SHOW);
 	UpdateLayout();
+}
+
+void MainFrame::InstallRom(const std::wstring& filename)
+{
+	RunElectron([this, filename]()
+	{
+		m_electron.InstallRom(2, Load(filename.c_str()));
+		m_electron.Break();
+	});
 }
 
 void MainFrame::OnFrameCompleted(const Image& image)

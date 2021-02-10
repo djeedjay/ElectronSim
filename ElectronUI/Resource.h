@@ -5,17 +5,19 @@
 #define ID_CAPSLOCK_PANE        1
 #define ID_CASSETTEMOTOR_PANE   2
 #define IDR_MAINFRAME			128
-#define IDM_FILE_INSERT_ROM     102
-#define IDD_ABOUTBOX			103
-#define IDM_VIEW_FULL_SCREEN    104
-#define IDM_ELECTRON_BREAK      105
-#define IDM_ELECTRON_RESTART    106
-#define IDM_ABOUT				107
-#define IDM_EXIT				108
-#define IDI_SMALL				109
-#define IDR_OS_ROM              110
-#define IDR_BASIC_ROM           111
-#define IDC_MYICON				2
+#define IDR_CONTEXT_MENU        129
+#define IDM_FILE_INSERT_ROM     101
+#define IDD_ABOUTBOX			102
+#define IDM_ELECTRON_MUTE       103
+#define IDM_ELECTRON_COPY_SCREEN 104
+#define IDM_ELECTRON_FULL_SCREEN 105
+#define IDM_ELECTRON_BREAK      106
+#define IDM_ELECTRON_RESTART    107
+#define IDM_ABOUT				108
+#define IDM_EXIT				109
+#define IDI_SMALL				110
+#define IDR_OS_ROM              111
+#define IDR_BASIC_ROM           112
 #ifndef IDC_STATIC
 #define IDC_STATIC				-1
 #endif
@@ -35,6 +37,6 @@
 #define _APS_NEXT_RESOURCE_VALUE	129
 #define _APS_NEXT_COMMAND_VALUE		32771
 #define _APS_NEXT_CONTROL_VALUE		1005
-#define _APS_NEXT_SYMED_VALUE		112
+#define _APS_NEXT_SYMED_VALUE		113
 #endif
 #endif

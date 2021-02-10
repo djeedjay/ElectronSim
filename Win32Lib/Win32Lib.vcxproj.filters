@@ -30,6 +30,9 @@
     <ClCompile Include="Handle.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Clipboard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Include\DjeeDjay\Win32\AtlWinExt.h">
@@ -48,6 +51,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\Include\DjeeDjay\Win32\Win32Error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Include\DjeeDjay\Win32\Clipboard.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
