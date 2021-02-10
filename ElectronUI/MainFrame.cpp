@@ -106,8 +106,10 @@ ElectronKey MakeElectronKey(UINT keyCode)
 	case VK_OEM_MINUS: return ElectronKey::Minus;
 	case VK_UP: return ElectronKey::Up;
 //	case VK_OEM_1: return ElectronKey::Colon;
+	case VK_OEM_7: return ElectronKey::Colon;
 	case VK_OEM_1: return ElectronKey::Semicolon;
 	case VK_DIVIDE: return ElectronKey::Divides;
+	case VK_OEM_2: return ElectronKey::Divides;
 	case VK_NUMPAD0: return ElectronKey::Num0;
 	case VK_NUMPAD1: return ElectronKey::Num1;
 	case VK_NUMPAD2: return ElectronKey::Num2;
@@ -167,16 +169,6 @@ ElectronKey MakeElectronKey(UINT keyCode)
 
 } // namespace
 
-KeyEvent KeyEvent::Down(ElectronKey key)
-{
-	return KeyEvent{ Type::Down, key };
-}
-
-KeyEvent KeyEvent::Up(ElectronKey key)
-{
-	return KeyEvent{ Type::Up, key };
-}
-
 BEGIN_UPDATE_UI_MAP2(MainFrame)
 	UPDATE_ELEMENT(0, UPDUI_STATUSBAR)
 	UPDATE_ELEMENT(1, UPDUI_STATUSBAR)
@@ -190,6 +182,8 @@ BEGIN_MSG_MAP2(MainFrame)
 	MSG_WM_KEYUP(OnKeyUp)
 	COMMAND_ID_HANDLER_EX(IDM_FILE_INSERT_ROM, OnFileInsertRom)
 	COMMAND_ID_HANDLER_EX(IDM_VIEW_FULL_SCREEN, OnFullScreen)
+	COMMAND_ID_HANDLER_EX(IDM_ELECTRON_BREAK, OnElectronBreak)
+	COMMAND_ID_HANDLER_EX(IDM_ELECTRON_RESTART, OnElectronRestart)
 	COMMAND_ID_HANDLER_EX(ID_CPU_EXCEPTION, OnCpuException)
 	COMMAND_ID_HANDLER_EX(ID_FRAME_COMPLETED, OnFrameCompleted)
 	COMMAND_ID_HANDLER_EX(ID_CAPSLOCK_CHANGED, OnCapsLockChanged)
@@ -200,10 +194,9 @@ BEGIN_MSG_MAP2(MainFrame)
 END_MSG_MAP()
 
 MainFrame::MainFrame() :
-	m_image(640, 512),
 	m_stop(false),
 	m_electron(ExtractResourceData(IDR_OS_ROM)),
-	m_keysChanged(false)
+	m_qChanged(false)
 {
 	m_electron.InstallRom(10, ExtractResourceData(IDR_BASIC_ROM));
 }
@@ -218,8 +211,6 @@ BOOL MainFrame::OnIdle()
 
 LRESULT MainFrame::OnCreate(const CREATESTRUCT* /*pCreate*/)
 {
-//	SetWindowText(L"Acorn Electron");
-
 	HICON hIcon = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXICON), ::GetSystemMetrics(SM_CYICON));
 	SetIcon(hIcon, TRUE);
 	HICON hIconSmall = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON));
@@ -255,6 +246,12 @@ LRESULT MainFrame::OnCreate(const CREATESTRUCT* /*pCreate*/)
 	m_hWndClient = m_imageView.Create(*this, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN, 0);
 	m_imageView.BackgroundColor(GetSysColor(COLOR_BTNFACE));
 
+	CRect cmdBarRect;
+	m_cmdBar.GetWindowRect(cmdBarRect);
+	CRect statusRect;
+	m_statusBar.GetWindowRect(statusRect);
+	ResizeClient(640, 512 + cmdBarRect.Height() + statusRect.Height());
+
 	m_thread = std::thread([this]() { Run(); });
 
 	return TRUE;
@@ -267,7 +264,7 @@ BOOL MainFrame::PreTranslateMessage(MSG* pMsg)
 
 void MainFrame::OnClose()
 {
-	m_stop = true;
+	RunElectron([this]() { m_stop = true; });
 	m_thread.join();
 
 	DestroyWindow();
@@ -276,8 +273,9 @@ void MainFrame::OnClose()
 void MainFrame::OnKeyDown(UINT nChar, UINT /*nRepCnt*/, UINT /*nFlags*/)
 {
 	auto key = MakeElectronKey(nChar);
+//	OutputDebugStringA(("OnKeyDown(" + std::to_string(nChar) + ") -> " + ToString(key) + "\n").c_str());
 	if (key != ElectronKey::None)
-		SendKeyEvent(KeyEvent::Down(key));
+		RunElectron([this, key]() { m_electron.KeyDown(key); });
 	else
 		SetMsgHandled(false);
 }
@@ -286,7 +284,7 @@ void MainFrame::OnKeyUp(UINT nChar, UINT /*nRepCnt*/, UINT /*nFlags*/)
 {
 	auto key = MakeElectronKey(nChar);
 	if (key != ElectronKey::None)
-		SendKeyEvent(KeyEvent::Up(key));
+		RunElectron([this, key]() { m_electron.KeyUp(key); });
 	else
 		SetMsgHandled(false);
 }
@@ -303,7 +301,11 @@ void MainFrame::OnFileInsertRom(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
 		CString fileName;
 		dlg.GetFilePath(fileName);
 
-		m_electron.InstallRom(2, Load(static_cast<const wchar_t*>(fileName)));
+		RunElectron([this, fileName]()
+		{
+			m_electron.InstallRom(2, Load(static_cast<const wchar_t*>(fileName)));
+			m_electron.Break();
+		});
 	}
 }
 
@@ -314,6 +316,16 @@ void MainFrame::OnFullScreen(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
 		SetFullscreen();
 	else
 		SetWindowed();
+}
+
+void MainFrame::OnElectronBreak(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
+{
+	RunElectron([this]() { m_electron.Break(); });
+}
+
+void MainFrame::OnElectronRestart(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
+{
+	RunElectron([this]() { m_electron.Restart(); });
 }
 
 void MainFrame::OnCpuException(UINT /*uCode*/, int /*nID*/, HWND /*hwndCtrl*/)
@@ -382,12 +394,12 @@ void MainFrame::OnFrameCompleted(const Image& image)
 	PostMessage(WM_COMMAND, ID_FRAME_COMPLETED);
 }
 
-void MainFrame::SendKeyEvent(const KeyEvent& event)
+void MainFrame::RunElectron(std::function<void ()> fn)
 {
 	std::unique_lock<std::mutex> lock(m_mtx);
-	m_keys.push_back(event);
+	m_q.push_back(std::move(fn));
 	lock.unlock();
-	m_keysChanged = true;
+	m_qChanged = true;
 }
 
 void MainFrame::Run()
@@ -401,25 +413,21 @@ void MainFrame::Run()
 	m_electron.CassetteMotor([this](bool value) { PostMessage(WM_COMMAND, MAKELONG(ID_CASSETTEMOTOR_CHANGED, value)); });
 	m_electron.Speaker([this](int frequency) { PostMessage(WM_COMMAND, MAKELONG(ID_PLAY_SOUND, frequency)); });
 
-	m_electron.Reset();
+	m_electron.Restart();
 
 	try
 	{
 		while (!m_stop)
 		{
-			if (m_keysChanged.exchange(false))
+			if (m_qChanged.exchange(false))
 			{
-				std::vector<KeyEvent> keys;
+				std::vector<std::function<void ()>> q;
 				std::unique_lock<std::mutex> lock(m_mtx);
-				m_keys.swap(keys);
+				m_q.swap(q);
 				lock.unlock();
-				for (auto& key : keys)
+				for (auto& fn : q)
 				{
-					switch (key.type)
-					{
-					case KeyEvent::Type::Down: m_electron.KeyDown(key.key); break;
-					case KeyEvent::Type::Up: m_electron.KeyUp(key.key); break;
-					}
+					fn();
 				}
 			}
 			m_electron.Step();

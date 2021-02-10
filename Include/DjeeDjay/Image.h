@@ -11,7 +11,9 @@ namespace DjeeDjay {
 class Image
 {
 public:
-	Image(int width, int height);
+	Image();
+
+	void Resize(int width, int height);
 
 	int Width() const;
 	int Height() const;

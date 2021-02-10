@@ -15,15 +15,6 @@
 
 namespace DjeeDjay {
 
-struct KeyEvent
-{
-	static KeyEvent Down(ElectronKey key);
-	static KeyEvent Up(ElectronKey key);
-
-	enum class Type { Down, Up } type;
-	ElectronKey key;
-};
-
 class MainFrame :
 	public CFrameWindowImpl<MainFrame>,
 	public CUpdateUI<MainFrame>,
@@ -49,6 +40,8 @@ private:
 	void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
 	void OnFileInsertRom(UINT uCode, int nID, HWND hwndCtrl);
 	void OnFullScreen(UINT uCode, int nID, HWND hwndCtrl);
+	void OnElectronBreak(UINT uCode, int nID, HWND hwndCtrl);
+	void OnElectronRestart(UINT uCode, int nID, HWND hwndCtrl);
 	void OnCpuException(UINT uCode, int nID, HWND hwndCtrl);
 	void OnFrameCompleted(UINT uCode, int nID, HWND hwndCtrl);
 	void OnCapsLockChanged(UINT uCode, int nID, HWND hwndCtrl);
@@ -59,7 +52,7 @@ private:
 	void SetWindowed();
 
 	void OnFrameCompleted(const Image& image);
-	void SendKeyEvent(const KeyEvent& event);
+	void RunElectron(std::function<void ()> fn);
 	void Run();
 
 	CCommandBarCtrl m_cmdBar;
@@ -70,11 +63,11 @@ private:
 	Speaker m_speaker;
 	std::mutex m_mtx;
 	Image m_image;
-	std::atomic<bool> m_stop;
+	bool m_stop;
 	std::thread m_thread;
 	Electron m_electron;
-	std::vector<KeyEvent> m_keys;
-	std::atomic<bool> m_keysChanged;
+	std::vector<std::function<void ()>> m_q;
+	std::atomic<bool> m_qChanged;
 	std::string m_cpuExceptionMessage;
 };
 

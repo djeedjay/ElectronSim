@@ -35,6 +35,221 @@ int RomBankNr(int index)
 	}
 }
 
+class ScreenBufferIterator
+{
+public:
+	ScreenBufferIterator(const uint8_t* ram, size_t screenMin, size_t screenStart) :
+		m_ram(ram),
+		m_screenMin(screenMin),
+		m_address(screenStart)
+	{
+	}
+
+	ScreenBufferIterator& operator++()
+	{
+		if (++m_address == 0x8000)
+			m_address = m_screenMin;
+		return *this;
+	}
+
+	uint8_t operator*() const
+	{
+		return m_ram[m_address];
+	}
+
+private:
+	const uint8_t* m_ram;
+	size_t m_screenMin;
+	size_t m_address;
+};
+
+void Write1(Image& image, int x, int y, uint32_t value)
+{
+	image.Data()[y * image.Width() + x] = value;
+}
+
+void Write2(Image& image, int x, int y, uint32_t value, const std::array<uint32_t, 16>& palette)
+{
+	Write1(image, x + 0, y, palette[((value & 0x80) >> 4) | ((value & 0x20) >> 3) | ((value & 0x08) >> 2) | ((value & 0x02) >> 1)]);
+	Write1(image, x + 1, y, palette[((value & 0x40) >> 3) | ((value & 0x10) >> 2) | ((value & 0x04) >> 1) | (value & 0x01)]);
+}
+
+void Write4(Image& image, int x, int y, uint32_t value, const std::array<uint32_t, 4>& palette)
+{
+	Write1(image, x + 0, y, palette[((value & 0x80) >> 6) | ((value & 0x08) >> 3)]);
+	Write1(image, x + 1, y, palette[((value & 0x40) >> 5) | ((value & 0x04) >> 2)]);
+	Write1(image, x + 2, y, palette[((value & 0x20) >> 4) | ((value & 0x02) >> 1)]);
+	Write1(image, x + 3, y, palette[((value & 0x10) >> 3) | (value & 0x01)]);
+}
+
+void Write8(Image& image, int x, int y, uint32_t value, const std::array<uint32_t, 2>& palette)
+{
+	Write1(image, x + 0, y, palette[(value & 0x80) >> 7]);
+	Write1(image, x + 1, y, palette[(value & 0x40) >> 6]);
+	Write1(image, x + 2, y, palette[(value & 0x20) >> 5]);
+	Write1(image, x + 3, y, palette[(value & 0x10) >> 4]);
+	Write1(image, x + 4, y, palette[(value & 0x08) >> 3]);
+	Write1(image, x + 5, y, palette[(value & 0x04) >> 2]);
+	Write1(image, x + 6, y, palette[(value & 0x02) >> 1]);
+	Write1(image, x + 7, y, palette[value & 0x01]);
+}
+
+void GenerateMode0(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 2>& palette, Image& image)
+{
+	image.Resize(640, 256);
+	ScreenBufferIterator it(ram, 0x3000, screenStart);
+
+	for (int y = 0; y < 32; ++y)
+	{
+		for (int x = 0; x < 80; ++x)
+		{
+			for (int row = 0; row < 8; ++row)
+			{
+				Write8(image, 8 * x, 8 * y + row, *it, palette);
+				++it;
+			}
+		}
+	}
+}
+
+void GenerateMode1(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 4>& palette, Image& image)
+{
+	image.Resize(320, 256);
+	ScreenBufferIterator it(ram, 0x3000, screenStart);
+
+	for (int y = 0; y < 32; ++y)
+	{
+		for (int x = 0; x < 80; ++x)
+		{
+			for (int row = 0; row < 8; ++row)
+			{
+				Write4(image, 4 * x, 8 * y + row, *it, palette);
+				++it;
+			}
+		}
+	}
+}
+
+void GenerateMode2(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 16>& palette, Image& image)
+{
+	image.Resize(160, 256);
+	ScreenBufferIterator it(ram, 0x3000, screenStart);
+
+	for (int y = 0; y < 32; ++y)
+	{
+		for (int x = 0; x < 80; ++x)
+		{
+			for (int row = 0; row < 8; ++row)
+			{
+				Write2(image, 2 * x, 8 * y + row, *it, palette);
+				++it;
+			}
+		}
+	}
+}
+
+void GenerateMode3(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 2>& palette, Image& image)
+{
+	image.Resize(640, 256);
+	ScreenBufferIterator it(ram, 0x4000, screenStart);
+
+	for (int x = 0; x < image.Width(); ++x)
+	{
+		Write1(image, x, 0, 0);
+		Write1(image, x, 1, 0);
+		Write1(image, x, 2, 0);
+		Write1(image, x, 3, 0);
+		Write1(image, x, 254, 0);
+		Write1(image, x, 255, 0);
+	}
+	for (int y = 0; y < 25; ++y)
+	{
+		for (int x = 0; x < 80; ++x)
+		{
+			for (int row = 0; row < 8; ++row)
+			{
+				Write8(image, 8 * x, 4 + 10 * y + row, *it, palette);
+				++it;
+			}
+		}
+
+		for (int x = 0; x < image.Width(); ++x)
+		{
+			Write1(image, x, 4 + 10 * y + 8, 0);
+			Write1(image, x, 4 + 10 * y + 9, 0);
+		}
+	}
+}
+
+void GenerateMode4(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 2>& palette, Image& image)
+{
+	image.Resize(320, 256);
+	ScreenBufferIterator it(ram, 0x5800, screenStart);
+
+	for (int y = 0; y < 32; ++y)
+	{
+		for (int x = 0; x < 40; ++x)
+		{
+			for (int row = 0; row < 8; ++row)
+			{
+				Write8(image, 8 * x, 8 * y + row, *it, palette);
+				++it;
+			}
+		}
+	}
+}
+
+void GenerateMode5(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 4>& palette, Image& image)
+{
+	image.Resize(160, 256);
+	ScreenBufferIterator it(ram, 0x5800, screenStart);
+
+	for (int y = 0; y < 32; ++y)
+	{
+		for (int x = 0; x < 40; ++x)
+		{
+			for (int row = 0; row < 8; ++row)
+			{
+				Write4(image, 4 * x, 8 * y + row, *it, palette);
+				++it;
+			}
+		}
+	}
+}
+
+void GenerateMode6(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 2>& palette, Image& image)
+{
+	image.Resize(320, 256);
+	ScreenBufferIterator it(ram, 0x6000, screenStart);
+
+	for (int x = 0; x < image.Width(); ++x)
+	{
+		Write1(image, x, 0, 0);
+		Write1(image, x, 1, 0);
+		Write1(image, x, 2, 0);
+		Write1(image, x, 3, 0);
+		Write1(image, x, 254, 0);
+		Write1(image, x, 255, 0);
+	}
+	for (int y = 0; y < 25; ++y)
+	{
+		for (int x = 0; x < 40; ++x)
+		{
+			for (int row = 0; row < 8; ++row)
+			{
+				Write8(image, 8 * x, 4 + 10 * y + row, *it, palette);
+				++it;
+			}
+		}
+
+		for (int x = 0; x < image.Width(); ++x)
+		{
+			Write1(image, x, 4 + 10 * y + 8, 0);
+			Write1(image, x, 4 + 10 * y + 9, 0);
+		}
+	}
+}
+
 } // namespace
 
 KeyboardBit::KeyboardBit(int column, int bit) :
@@ -44,14 +259,10 @@ KeyboardBit::KeyboardBit(int column, int bit) :
 }
 
 Ula::Ula(MOS6502& cpu) :
-	m_cpu(cpu),
-	m_nextFrameCycle(VSyncCycles),
-	m_nextRtcCycle(VSyncCycles + VSyncToRtcCycles),
-	m_irqStatus(UnusedMask | PowerOnReset),
-	m_irqEnable(0),
-	m_romBankIndex(0)
+	m_cpu(cpu)
 {
 	std::fill(m_keyboard.begin(), m_keyboard.end(), static_cast<uint8_t>(0));
+	Restart();
 }
 
 void Ula::Trace(TraceEvent slot)
@@ -93,7 +304,23 @@ void Ula::InstallRom(int bank, std::vector<uint8_t> rom)
 	m_roms[RomBankNr(bank)] = std::move(rom);
 }
 
-uint8_t Ula::ReadKeyboard(uint16_t address)
+void Ula::Restart()
+{
+	Reset();
+	m_irqStatus |= PowerOnReset;
+}
+
+void Ula::Reset()
+{
+	m_oneMHzCycles = 0;
+	m_videoCycles = 0;
+	m_nextFrameCycle = VSyncCycles;
+	m_nextRtcCycle = VSyncCycles + VSyncToRtcCycles;
+	m_romBankIndex = 0;
+	UpdateIrqStatus(0, 0);
+}
+
+uint8_t Ula::ReadKeyboard(uint16_t address) const
 {
 	uint8_t value = 0;
 	if ((address & 0xC001) == 0x8000)
@@ -128,7 +355,7 @@ uint8_t Ula::ReadKeyboard(uint16_t address)
 	return value;
 }
 
-uint8_t Ula::ReadRom(uint16_t address)
+uint8_t Ula::ReadRom(uint16_t address) const
 {
 	return
 		m_romBankIndex == 8 ? ReadKeyboard(address) :
@@ -149,6 +376,16 @@ void Ula::UpdateTimers()
 {
 	if (m_cpu.Cycles() > m_nextRtcCycle)
 		TriggerRtcInterrupt();
+}
+
+uint64_t Ula::OneMHzCycles() const
+{
+	return m_oneMHzCycles;
+}
+
+uint64_t Ula::VideoCycles() const
+{
+	return m_videoCycles;
 }
 
 bool Ula::ReadyForNextFrame() const
@@ -302,285 +539,6 @@ void Ula::Palette(int index, uint8_t value)
 	m_palette[index] = value;
 }
 
-void GenerateMode0(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 2>& palette, Image& image)
-{
-	auto Read = [&](int x, int y, int row)
-	{
-		auto address = screenStart + y * 80 * 8 + x * 8 + row;
-		return ram[address < 0x8000 ? address : address - 0x5000];
-	};
-
-	auto Write = [&](int x, int y, uint32_t value)
-	{
-		image.Data()[(2 * y + 0) * image.Width() + x] = value;
-		image.Data()[(2 * y + 1) * image.Width() + x] = value;
-	};
-
-	for (int y = 0; y < 32; ++y)
-	{
-		for (int x = 0; x < 80; ++x)
-		{
-			for (int row = 0; row < 8; ++row)
-			{
-				auto b = Read(x, y, row);
-				Write(8 * x + 0, 8 * y + row, palette[(b & 0x80) >> 7]);
-				Write(8 * x + 1, 8 * y + row, palette[(b & 0x40) >> 6]);
-				Write(8 * x + 2, 8 * y + row, palette[(b & 0x20) >> 5]);
-				Write(8 * x + 3, 8 * y + row, palette[(b & 0x10) >> 4]);
-				Write(8 * x + 4, 8 * y + row, palette[(b & 0x08) >> 3]);
-				Write(8 * x + 5, 8 * y + row, palette[(b & 0x04) >> 2]);
-				Write(8 * x + 6, 8 * y + row, palette[(b & 0x02) >> 1]);
-				Write(8 * x + 7, 8 * y + row, palette[b & 0x01]);
-			}
-		}
-	}
-}
-
-void GenerateMode1(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 4>& palette, Image& image)
-{
-	auto Read = [&](int x, int y, int row)
-	{
-		auto address = screenStart + y * 80 * 8 + x * 8 + row;
-		return ram[address < 0x8000 ? address : address - 0x5000];
-	};
-
-	auto Write = [&](int x, int y, uint32_t value)
-	{
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 0] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 1] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 0] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 1] = value;
-	};
-
-	for (int y = 0; y < 32; ++y)
-	{
-		for (int x = 0; x < 80; ++x)
-		{
-			for (int row = 0; row < 8; ++row)
-			{
-				auto b = Read(x, y, row);
-				Write(4 * x + 0, 8 * y + row, palette[((b & 0x80) >> 6) | ((b & 0x08) >> 3)]);
-				Write(4 * x + 1, 8 * y + row, palette[((b & 0x40) >> 5) | ((b & 0x04) >> 2)]);
-				Write(4 * x + 2, 8 * y + row, palette[((b & 0x20) >> 4) | ((b & 0x02) >> 1)]);
-				Write(4 * x + 3, 8 * y + row, palette[((b & 0x10) >> 3) | (b & 0x01)]);
-			}
-		}
-	}
-}
-
-void GenerateMode2(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 16>& palette, Image& image)
-{
-	auto Read = [&](int x, int y, int row)
-	{
-		auto address = screenStart + y * 80 * 8 + x * 8 + row;
-		return ram[address < 0x8000 ? address : address - 0x5000];
-	};
-
-	auto Write = [&](int x, int y, uint32_t value)
-	{
-		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 0] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 1] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 2] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 3] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 0] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 1] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 2] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 3] = value;
-	};
-
-	for (int y = 0; y < 32; ++y)
-	{
-		for (int x = 0; x < 80; ++x)
-		{
-			for (int row = 0; row < 8; ++row)
-			{
-				auto b = Read(x, y, row);
-				Write(2 * x + 0, 8 * y + row, palette[((b & 0x80) >> 4) | ((b & 0x20) >> 3) | ((b & 0x08) >> 2) | ((b & 0x02) >> 1)]);
-				Write(2 * x + 1, 8 * y + row, palette[((b & 0x40) >> 3) | ((b & 0x10) >> 2) | ((b & 0x04) >> 1) | (b & 0x01)]);
-			}
-		}
-	}
-}
-
-void GenerateMode3(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 2>& palette, Image& image)
-{
-	auto Read = [&](int x, int y, int row)
-	{
-		auto address = screenStart + y * 80 * 8 + x * 8 + row;
-		return ram[address < 0x8000 ? address : address - 0x4000];
-	};
-
-	auto Write = [&](int x, int y, uint32_t value)
-	{
-		image.Data()[(2 * y + 0) * image.Width() + x] = value;
-		image.Data()[(2 * y + 1) * image.Width() + x] = value;
-	};
-
-	for (int x = 0; x < image.Width(); ++x)
-	{
-		Write(x, 0, 0);
-		Write(x, 1, 0);
-		Write(x, 2, 0);
-		Write(x, 3, 0);
-	}
-	for (int y = 0; y < 25; ++y)
-	{
-		for (int x = 0; x < 80; ++x)
-		{
-			for (int row = 0; row < 8; ++row)
-			{
-				auto b = Read(x, y, row);
-				Write(8 * x + 0, 4 + 10 * y + row, palette[(b & 0x80) >> 7]);
-				Write(8 * x + 1, 4 + 10 * y + row, palette[(b & 0x40) >> 6]);
-				Write(8 * x + 2, 4 + 10 * y + row, palette[(b & 0x20) >> 5]);
-				Write(8 * x + 3, 4 + 10 * y + row, palette[(b & 0x10) >> 4]);
-				Write(8 * x + 4, 4 + 10 * y + row, palette[(b & 0x08) >> 3]);
-				Write(8 * x + 5, 4 + 10 * y + row, palette[(b & 0x04) >> 2]);
-				Write(8 * x + 6, 4 + 10 * y + row, palette[(b & 0x02) >> 1]);
-				Write(8 * x + 7, 4 + 10 * y + row, palette[b & 0x01]);
-			}
-		}
-
-		for (int x = 0; x < image.Width(); ++x)
-		{
-			Write(x, 4 + 10 * y + 8, 0);
-			Write(x, 4 + 10 * y + 9, 0);
-		}
-	}
-	for (int x = 0; x < image.Width(); ++x)
-	{
-		Write(x, 254, 0);
-		Write(x, 255, 0);
-	}
-}
-
-void GenerateMode4(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 2>& palette, Image& image)
-{
-	auto Read = [&](int x, int y, int row)
-	{
-		auto address = screenStart + y * 40 * 8 + x * 8 + row;
-		return ram[address < 0x8000 ? address : address - 0x2800];
-	};
-
-	auto Write = [&](int x, int y, uint32_t value)
-	{
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 0] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 1] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 0] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 1] = value;
-	};
-
-	for (int y = 0; y < 32; ++y)
-	{
-		for (int x = 0; x < 40; ++x)
-		{
-			for (int row = 0; row < 8; ++row)
-			{
-				auto b = Read(x, y, row);
-				Write(8 * x + 0, 8 * y + row, palette[(b & 0x80) >> 7]);
-				Write(8 * x + 1, 8 * y + row, palette[(b & 0x40) >> 6]);
-				Write(8 * x + 2, 8 * y + row, palette[(b & 0x20) >> 5]);
-				Write(8 * x + 3, 8 * y + row, palette[(b & 0x10) >> 4]);
-				Write(8 * x + 4, 8 * y + row, palette[(b & 0x08) >> 3]);
-				Write(8 * x + 5, 8 * y + row, palette[(b & 0x04) >> 2]);
-				Write(8 * x + 6, 8 * y + row, palette[(b & 0x02) >> 1]);
-				Write(8 * x + 7, 8 * y + row, palette[b & 0x01]);
-			}
-		}
-	}
-}
-
-void GenerateMode5(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 4>& palette, Image& image)
-{
-	auto Read = [&](int x, int y, int row)
-	{
-		auto address = screenStart + y * 40 * 8 + x * 8 + row;
-		return ram[address < 0x8000 ? address : address - 0x2800];
-	};
-
-	auto Write = [&](int x, int y, uint32_t value)
-	{
-		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 0] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 1] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 2] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 4 * x + 3] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 0] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 1] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 2] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 4 * x + 3] = value;
-	};
-
-	for (int y = 0; y < 32; ++y)
-	{
-		for (int x = 0; x < 40; ++x)
-		{
-			for (int row = 0; row < 8; ++row)
-			{
-				auto b = Read(x, y, row);
-				Write(4 * x + 0, 8 * y + row, palette[((b & 0x80) >> 6) | ((b & 0x08) >> 3)]);
-				Write(4 * x + 1, 8 * y + row, palette[((b & 0x40) >> 5) | ((b & 0x04) >> 2)]);
-				Write(4 * x + 2, 8 * y + row, palette[((b & 0x20) >> 4) | ((b & 0x02) >> 1)]);
-				Write(4 * x + 3, 8 * y + row, palette[((b & 0x10) >> 3) | (b & 0x01)]);
-			}
-		}
-	}
-}
-
-void GenerateMode6(const uint8_t* ram, size_t screenStart, const std::array<uint32_t, 2>& palette, Image& image)
-{
-	auto Read = [&](int x, int y, int row)
-	{
-		auto address = screenStart + y * 40 * 8 + x * 8 + row;
-		return ram[address < 0x8000 ? address : address - 0x2000];
-	};
-
-	auto Write = [&](int x, int y, uint32_t value)
-	{
-		assert(x >= 0 && y >= 0 && x < image.Width() / 2 && y < image.Height() / 2);
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 0] = value;
-		image.Data()[(2 * y + 0) * image.Width() + 2 * x + 1] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 0] = value;
-		image.Data()[(2 * y + 1) * image.Width() + 2 * x + 1] = value;
-	};
-
-	for (int x = 0; x < image.Width() / 2; ++x)
-	{
-		Write(x, 0, 0);
-		Write(x, 1, 0);
-		Write(x, 2, 0);
-		Write(x, 3, 0);
-	}
-	for (int y = 0; y < 25; ++y)
-	{
-		for (int x = 0; x < 40; ++x)
-		{
-			for (int row = 0; row < 8; ++row)
-			{
-				auto b = Read(x, y, row);
-				Write(8 * x + 0, 4 + 10 * y + row, palette[(b & 0x80) >> 7]);
-				Write(8 * x + 1, 4 + 10 * y + row, palette[(b & 0x40) >> 6]);
-				Write(8 * x + 2, 4 + 10 * y + row, palette[(b & 0x20) >> 5]);
-				Write(8 * x + 3, 4 + 10 * y + row, palette[(b & 0x10) >> 4]);
-				Write(8 * x + 4, 4 + 10 * y + row, palette[(b & 0x08) >> 3]);
-				Write(8 * x + 5, 4 + 10 * y + row, palette[(b & 0x04) >> 2]);
-				Write(8 * x + 6, 4 + 10 * y + row, palette[(b & 0x02) >> 1]);
-				Write(8 * x + 7, 4 + 10 * y + row, palette[b & 0x01]);
-			}
-		}
-
-		for (int x = 0; x < image.Width() / 2; ++x)
-		{
-			Write(x, 4 + 10 * y + 8, 0);
-			Write(x, 4 + 10 * y + 9, 0);
-		}
-	}
-	for (int x = 0; x < image.Width() / 2; ++x)
-	{
-		Write(x, 254, 0);
-		Write(x, 255, 0);
-	}
-}
-
 uint32_t Ula::PaletteB(int index, int bit) const
 {
 	return m_palette[index] & (1 << bit) ? 0 : 0x0000FF;
@@ -644,20 +602,37 @@ void Ula::GenerateFrame(const uint8_t* ram, Image& image)
 	int mode = (m_miscControl & 0x38) >> 3;
 
 	size_t screenStart = ((m_screenHigh << 9) | (m_screenLow << 1)) & 0x7fc0;
-	if (mode == 0)
+	switch (mode)
+	{
+	case 0:
 		GenerateMode0(ram, screenStart, Palette2(), image);
-	if (mode == 1)
+		m_videoCycles += 80 * 8 * 32 * 2;
+		break;
+	case 1:
 		GenerateMode1(ram, screenStart, Palette4(), image);
-	if (mode == 2)
+		m_videoCycles += 40 * 2 * 8 * 32 * 2;
+		break;
+	case 2:
 		GenerateMode2(ram, screenStart, Palette16(), image);
-	if (mode == 3)
+		m_videoCycles += 20 * 4 * 8 * 32 * 2;
+		break;
+	case 3:
 		GenerateMode3(ram, screenStart, Palette2(), image);
-	if (mode == 4)
+		m_videoCycles += 80 * 8 * 25 * 2;
+		break;
+	case 4:
 		GenerateMode4(ram, screenStart, Palette2(), image);
-	if (mode == 5)
+		m_videoCycles += 40 * 8 * 32 * 2;
+		break;
+	case 5:
 		GenerateMode5(ram, screenStart, Palette4(), image);
-	if (mode == 6)
+		m_videoCycles += 20 * 2 * 8 * 32 * 2;
+		break;
+	case 6:
 		GenerateMode6(ram, screenStart, Palette2(), image);
+		m_videoCycles += 40 * 8 * 25 * 2;
+		break;
+	}
 
 	UpdateIrqStatus(m_irqEnable, m_irqStatus | DisplayEnd);
 	m_nextFrameCycle += VSyncCycles;

@@ -78,8 +78,7 @@ KeyboardBit ToKeyboardBit(ElectronKey key)
 
 Electron::Electron(const std::vector<uint8_t>& rom) :
 	m_cpu(*this),
-	m_ula(m_cpu),
-	m_image(640, 512)
+	m_ula(m_cpu)
 {
 	if (rom.size() != 0x4000)
 		throw std::runtime_error("Bad ROM size");
@@ -91,12 +90,24 @@ void Electron::InstallRom(int bank, std::vector<uint8_t> rom)
 	m_ula.InstallRom(bank, std::move(rom));
 }
 
-void Electron::Reset()
+void Electron::Restart()
 {
 	m_cpu.Reset(true);
+	m_ula.Restart();
 	m_cpu.Step();
 	m_cpu.Reset(false);
 	m_startTime = std::chrono::steady_clock::now();
+	m_oneMhzCycles = 0;
+}
+
+void Electron::Break()
+{
+	m_cpu.Reset(true);
+	m_ula.Reset();
+	m_cpu.Step();
+	m_cpu.Reset(false);
+	m_startTime = std::chrono::steady_clock::now();
+	m_oneMhzCycles = 0;
 }
 
 void Electron::KeyDown(ElectronKey key)
@@ -149,31 +160,13 @@ using CpuCycles = std::chrono::duration<uint64_t, std::ratio<1, 2'000'000>>;
 
 void Electron::Step()
 {
-	static bool trace = false;
-
 	m_ula.UpdateTimers();
 	if (m_ula.ReadyForNextFrame())
 	{
 		m_ula.GenerateFrame(m_ram.data(), m_image);
 		m_frameCompleted(m_image);
-		std::this_thread::sleep_until(m_startTime + CpuCycles(m_cpu.Cycles()));
+		std::this_thread::sleep_until(m_startTime + CpuCycles(m_cpu.Cycles() + m_oneMhzCycles + m_ula.OneMHzCycles() + m_ula.VideoCycles()));
 	}
-	if (trace)
-	{
-	//	auto addr = m_cpu.PC();
-	//	m_trace(ShowRegisters(m_cpu) + " " + Disassemble(*this, addr) + "\n");
-	//	if (Read(addr) == 0x40)
-	//	{
-	//		m_trace("RTI\n");
-	//		trace = false;
-	//	}
-	}
-	//if (m_cpu.IRQ() && !m_cpu.I())
-	//{
-	//	m_trace("IRQ\n");
-	//	trace = true;
-	//}
-
 	m_cpu.Step();
 }
 

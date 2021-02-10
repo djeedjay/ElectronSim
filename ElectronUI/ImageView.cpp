@@ -99,22 +99,23 @@ void ImageView::Paint(HDC /*hdc*/)
 
 	m_pIRenderTarget->BeginDraw();
 	auto viewSize = m_pIRenderTarget->GetSize();
-	auto imageSize = m_pIBitmap->GetPixelSize();
 
-	float scale = std::min(viewSize.width / imageSize.width, viewSize.height / imageSize.height);
-	float width = scale * imageSize.width;
-	float height = scale * imageSize.height;
+	float scale = std::min(viewSize.width / 640, viewSize.height / 512);
+	float width = scale * 640;
+	float height = scale * 512;
 
 	m_pIBrush->SetColor(D2D1::ColorF(m_bgColor, 1.0f));
 	m_pIRenderTarget->FillRectangle(D2D1::RectF(0, 0, viewSize.width, viewSize.height), m_pIBrush);
 
-	m_pIRenderTarget->DrawBitmap(m_pIBitmap, D2D1::RectF((viewSize.width - width)/2, (viewSize.height - height)/2, (viewSize.width + width)/2, (viewSize.height + height)/2));
+	m_pIRenderTarget->DrawBitmap(
+		m_pIBitmap,
+		D2D1::RectF((viewSize.width - width)/2, (viewSize.height - height)/2, (viewSize.width + width)/2, (viewSize.height + height)/2),
+		1.f,
+		D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR);
 
 	auto hr = m_pIRenderTarget->EndDraw();
 	if (FAILED(hr) || hr == D2DERR_RECREATE_TARGET)
-	{
 		DiscardGraphicsResources();
-	}
 
 	EndPaint(&ps);
 }

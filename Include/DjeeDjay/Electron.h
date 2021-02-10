@@ -83,7 +83,8 @@ public:
 
 	void InstallRom(int bank, std::vector<uint8_t> rom);
 
-	void Reset();
+	void Restart();
+	void Break();
 
 	void KeyDown(ElectronKey key);
 	void KeyUp(ElectronKey key);
@@ -110,6 +111,7 @@ private:
 	Ula m_ula;
 	Image m_image;
 	std::chrono::steady_clock::time_point m_startTime;
+	uint64_t m_oneMhzCycles;
 
 	TraceEvent m_trace;
 	FrameCompletedEvent m_frameCompleted;

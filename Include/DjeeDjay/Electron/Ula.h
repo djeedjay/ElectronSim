@@ -38,13 +38,18 @@ public:
 	bool CassetteMotor() const;
 
 	void InstallRom(int bank, std::vector<uint8_t> rom);
-	uint8_t ReadKeyboard(uint16_t address);
-	uint8_t ReadRom(uint16_t address);
+	void Restart();
+	void Reset();
+
+	uint8_t ReadKeyboard(uint16_t address) const;
+	uint8_t ReadRom(uint16_t address) const;
 
 	void KeyDown(const KeyboardBit& key);
 	void KeyUp(const KeyboardBit& key);
 
 	void UpdateTimers();
+	uint64_t OneMHzCycles() const;
+	uint64_t VideoCycles() const;
 	bool ReadyForNextFrame() const;
 	void GenerateFrame(const uint8_t* ram, Image& image);
 
@@ -87,6 +92,8 @@ private:
 	std::array<std::vector<uint8_t>, 16> m_roms;
 	std::array<uint8_t, 14> m_keyboard;
 
+	uint64_t m_oneMHzCycles;
+	uint64_t m_videoCycles;
 	uint64_t m_nextFrameCycle;
 	uint64_t m_nextRtcCycle;
 

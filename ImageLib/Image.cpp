@@ -4,11 +4,20 @@
 
 namespace DjeeDjay {
 
-Image::Image(int width, int height) :
-	m_width(width),
-	m_height(height),
-	m_data(height * width)
+Image::Image() :
+	m_width(0),
+	m_height(0)
 {
+}
+
+void Image::Resize(int width, int height)
+{
+	if (width != m_width || height != m_height)
+	{
+		m_width = width;
+		m_height = height;
+		m_data.resize(height * width);
+	}
 }
 
 int Image::Width() const

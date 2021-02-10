@@ -8,9 +8,11 @@
 #define IDM_FILE_INSERT_ROM     102
 #define IDD_ABOUTBOX			103
 #define IDM_VIEW_FULL_SCREEN    104
-#define IDM_ABOUT				105
-#define IDM_EXIT				106
-#define IDI_SMALL				107
+#define IDM_ELECTRON_BREAK      105
+#define IDM_ELECTRON_RESTART    106
+#define IDM_ABOUT				107
+#define IDM_EXIT				108
+#define IDI_SMALL				109
 #define IDR_OS_ROM              110
 #define IDR_BASIC_ROM           111
 #define IDC_MYICON				2
